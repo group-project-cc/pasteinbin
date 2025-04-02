@@ -91,5 +91,54 @@ def delete_paste(paste_id):
     del pastes[paste_id]
     return jsonify({"message": "Paste deleted"}), 200
 
+# Update endpoint (PUT)
+@app.route('/paste/<paste_id>', methods=['PUT'])
+@jwt_required()
+def update_paste(paste_id):
+    username = get_jwt_identity()
+    paste = pastes.get(paste_id)
+
+    if not paste:
+        return jsonify({"error": "Paste not found"}), 404
+
+    if paste["owner"] != username:
+        return jsonify({"error": "You are not authorized to update this paste"}), 403
+
+    data = request.json
+    if not data or 'content' not in data:
+        return jsonify({"error": "Content is required"}), 400
+
+    paste["content"] = data['content']
+    return jsonify({"message": "Paste updated"}), 200
+
+# Search Pastes endpoint (GET)
+@app.route('/search', methods=['GET'])
+@jwt_required()
+def search_pastes():
+    keyword = request.args.get('keyword', '').lower()
+    result = {}
+
+    for paste_id, paste in pastes.items():
+        if keyword in paste["content"].lower():
+            result[paste_id] = paste
+
+    if not result:
+        return jsonify({"message": "No pastes found"}), 404
+
+    return jsonify({"results": result}), 200
+
+# List Pastes endpoint (GET)
+@app.route('/pastes', methods=['GET'])
+@jwt_required()
+def list_pastes():
+    username = get_jwt_identity()
+    user_pastes = {paste_id: paste for paste_id, paste in pastes.items() if paste["owner"] == username}
+
+    if not user_pastes:
+        return jsonify({"message": "No pastes found for this user"}), 404
+
+    return jsonify({"pastes": user_pastes}), 200
+
+
 if __name__ == '__main__':
     app.run(debug=True)  # Run Flask in debug mode
