@@ -15,10 +15,11 @@ $ flask --app api/api run -h localhost -p 8080
 
 ## Prerequisites for running Kafka
 - Docker<br>
-  Make sure Docker Desktop is running in background (if you're on windows/mac). if you face any issues with docker on terminal, maybe try logging in first with:
-      ```sh
-      $ docker login -p <docker_username> -u<docker_password>
-      ```
+  Make sure Docker Desktop is running in background (if you're on windows/mac). if you face any issues with docker on terminal, maybe try logging in first?
+  ```sh
+      $ docker login -u <docker_username> -p <docker_password>
+  ```
+      
   
 - confluent-kafka
 ```sh
