@@ -2,6 +2,10 @@ from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import Bcrypt
 import uuid
+from confluent_kafka import Producer
+import json
+import time
+
 
 app = Flask(__name__)
 
@@ -9,15 +13,38 @@ app.config["JWT_SECRET_KEY"] = "cc-proj"  # Secret key for JWT authentication
 jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
 
+
+#setting-up kafka producer
+def delivery_report(err, msg):
+    if err is not None:
+        print(f"Delivery failed: {err}")
+    else:
+        print(f"Message delivered to topic: {msg.topic()} [{msg.partition()}]")
+
+def send_to_kafka(topic,data):
+    try:
+        payload = json.dumps(data)
+        producer.produce(topic, value=payload, callback = delivery_report)
+        producer.flush()
+    except Exception as e:
+        print(f"Kafka send failed {e}")
+
+producer_conf = {
+    "bootstrap.servers": "localhost:9092",
+}
+producer = Producer(producer_conf)
+
+
 # In-memory storage 
 users_db = {
     "admin": bcrypt.generate_password_hash("password123").decode("utf-8"),
 }
 pastes = {}  # Dictionary to store pastes
 
+
 @app.route('/')
 def root():
-    return '<h1>Welcome to PasteBin API</h1>'
+    return '<h1>Welcome to PasteInBin API</h1>'
 
 #  Signup Endpoint
 @app.route("/signup", methods=["POST"])
@@ -27,10 +54,22 @@ def sign_up():
     password = data.get("password")
 
     if username in users_db:
+        send_to_kafka("auth_topic",
+        {"event": "signup",
+         "username": username,
+         "timestamp": time.time(),
+         "result": "failed - username already exists"
+         })
         return jsonify({"message": "Username already exists"}), 400
 
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
     users_db[username] = hashed_pw
+    send_to_kafka("auth_topic", {
+        "event": "signup",
+        "username": username,
+        "timestamp": time.time(),
+        "result": "successfully signed up"
+    })
     return jsonify({"message": "User created"}), 201
 
 #  Login Endpoint
@@ -42,15 +81,34 @@ def login():
 
     stored_password = users_db.get(username)
     if not stored_password or not bcrypt.check_password_hash(stored_password, password):
+        send_to_kafka("auth_topic", {
+            "event": "login",
+            "username": username,
+            "timestamp": time.time(),
+            "result": "failed - invalid credentials"
+        })
         return jsonify({"message": "Invalid credentials"}), 401
 
     access_token = create_access_token(identity=username)
+    send_to_kafka("auth_topic", {
+        "event": "login",
+        "username": username,
+        "timestamp": time.time(),
+        "result": "successfully logged in"
+    })
     return jsonify({"message": "Logged in Successfully!", "access_token": access_token}), 200
 
 #  Logout Endpoint
 @app.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
+    username = get_jwt_identity()
+    send_to_kafka("auth_topic", {
+        "event": "logout",
+        "username": username,
+        "timestamp": time.time(),
+        "result": "successfully logged out"
+    })
     return jsonify({"message": f"{get_jwt_identity()} Logged Out"}), 200
 
 #  Create a Paste (POST) 
