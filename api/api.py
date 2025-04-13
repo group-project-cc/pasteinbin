@@ -158,7 +158,6 @@ def delete_paste(paste_id):
     return jsonify({"message": "Paste deleted"}), 200
 
 
-
 @app.route('/paste/<paste_id>', methods=['PUT'])
 @jwt_required()
 def update_paste(paste_id):
