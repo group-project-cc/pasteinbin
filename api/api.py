@@ -243,6 +243,5 @@ def list_pastes():
 
     return jsonify({"pastes": user_pastes}), 200
 
-
 if __name__ == '__main__':
     app.run(debug=True)
