@@ -8,9 +8,9 @@ conf = {
 }
 
 consumer = Consumer(conf)
-consumer.subscribe(['auth_topic', 'paste_topic'])
+consumer.subscribe(['auth_topic', 'paste_topic', 'access_topic' ])
 
-print("Kafka Consumer listening to 'auth_topic' and 'paste_topic'...\n")
+print("Kafka Consumer listening to 'auth_topic', 'paste_topic', and 'access_topic' ...\n")
 
 try:
     while True:

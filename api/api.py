@@ -166,9 +166,23 @@ def update_paste(paste_id):
     paste = pastes.get(paste_id)
 
     if not paste:
+        send_to_kafka("paste_topic", {
+            "event": "update_paste",
+            "username": username,
+            "paste_id": paste_id,
+            "timestamp": time.time(),
+            "result": "failed - paste not found"
+        })
         return jsonify({"error": "Paste not found"}), 404
 
     if paste["owner"] != username:
+        send_to_kafka("paste_topic", {
+            "event": "update_paste",
+            "username": username,
+            "paste_id": paste_id,
+            "timestamp": time.time(),
+            "result": "failed - unauthorized"
+        })
         return jsonify({"error": "You are not authorized to update this paste"}), 403
 
     data = request.json
@@ -176,17 +190,35 @@ def update_paste(paste_id):
         return jsonify({"error": "Content is required"}), 400
 
     paste["content"] = data['content']
+
+    send_to_kafka("paste_topic", {
+        "event": "update_paste",
+        "username": username,
+        "paste_id": paste_id,
+        "timestamp": time.time(),
+        "result": "success"
+    })
+
     return jsonify({"message": "Paste updated"}), 200
 
 @app.route('/search', methods=['GET'])
 @jwt_required()
 def search_pastes():
     keyword = request.args.get('keyword', '').lower()
+    username = get_jwt_identity()
     result = {}
 
     for paste_id, paste in pastes.items():
         if keyword in paste["content"].lower():
             result[paste_id] = paste
+
+    send_to_kafka("access_topic", {
+        "event": "search_pastes",
+        "username": username,
+        "keyword": keyword,
+        "timestamp": time.time(),
+        "result_count": len(result)
+    })
 
     if not result:
         return jsonify({"message": "No pastes found"}), 404
@@ -199,10 +231,18 @@ def list_pastes():
     username = get_jwt_identity()
     user_pastes = {pid: p for pid, p in pastes.items() if p["owner"] == username}
 
+    send_to_kafka("access_topic", {
+        "event": "list_pastes",
+        "username": username,
+        "timestamp": time.time(),
+        "result_count": len(user_pastes)
+    })
+
     if not user_pastes:
         return jsonify({"message": "No pastes found for this user"}), 404
 
     return jsonify({"pastes": user_pastes}), 200
+
 
 if __name__ == '__main__':
     app.run(debug=True)
