@@ -218,7 +218,6 @@ def search_pastes():
         "timestamp": time.time(),
         "result_count": len(result)
     })
-
     if not result:
         return jsonify({"message": "No pastes found"}), 404
 
@@ -236,11 +235,10 @@ def list_pastes():
         "timestamp": time.time(),
         "result_count": len(user_pastes)
     })
-
     if not user_pastes:
         return jsonify({"message": "No pastes found for this user"}), 404
 
     return jsonify({"pastes": user_pastes}), 200
 
-if __name__ == '__main__':
+if __name__ == '__main__': 
     app.run(debug=True)
