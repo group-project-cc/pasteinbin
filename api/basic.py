@@ -3,25 +3,25 @@ import json
 
 conf = {
     'bootstrap.servers': 'localhost:9092',
-    'group.id': 'auth_topic_consumer_group',
-    'auto.offset.reset': 'earliest'  # start from beginning
+    'group.id': 'combined_consumer_group',
+    'auto.offset.reset': 'earliest'
 }
 
 consumer = Consumer(conf)
-consumer.subscribe(['auth_topic'])
+consumer.subscribe(['auth_topic', 'paste_topic'])
 
-print("Kafka Consumer listening to 'auth_topic'... (Ctrl+C to stop)\n")
+print("Kafka Consumer listening to 'auth_topic' and 'paste_topic'...\n")
 
 try:
     while True:
-        msg = consumer.poll(1.0)  # timeout 1 second
+        msg = consumer.poll(1.0)
         if msg is None:
             continue
         if msg.error():
             raise KafkaException(msg.error())
         try:
             decoded_value = json.loads(msg.value().decode('utf-8'))
-            print(f"[RECEIVED] {decoded_value}")
+            print(f"[{msg.topic().upper()}] {decoded_value}")
         except json.JSONDecodeError:
             print(f"[ERROR] Failed to decode JSON: {msg.value()}")
 except KeyboardInterrupt:
