@@ -41,7 +41,7 @@ pastes = {}
 def root():
     return '<h1>Welcome to PasteInBin API</h1>'
 
-# 🔒 AUTHENTICATION ROUTES (leave as-is)
+
 @app.route("/signup", methods=["POST"])
 def sign_up():
     data = request.get_json()
@@ -104,7 +104,7 @@ def logout():
     })
     return jsonify({"message": f"{username} Logged Out"}), 200
 
-# ✅ YOUR WORK (Paste Routes)
+
 
 @app.route('/paste', methods=['POST'])
 @jwt_required()
@@ -157,7 +157,7 @@ def delete_paste(paste_id):
 
     return jsonify({"message": "Paste deleted"}), 200
 
-# 🔒 OTHER TEAMMATES' ROUTES (Unchanged)
+
 
 @app.route('/paste/<paste_id>', methods=['PUT'])
 @jwt_required()
