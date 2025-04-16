@@ -77,3 +77,40 @@ $ docker compose down
 $ docker compose down -v
 ```
 This one in particular removes the containers and clears the persistent data in the volume so no useless logs remain or are persisted.
+
+<br>
+
+## --IN PARTICULAR FOR POSTGRESQL AND PGADMIN--
+
+- Run the docker compose file as mentioned previously.
+- Run the docker_topics.py file.
+- Run *postgre_schema.py*
+```sh
+$ python run postgre_schema.py
+```
+This creates the tables in the database, ready to be filled with logs.
+
+<br>
+
+pgadmin is a postegresql visualisation tool (GUI basically) that helps you verify if everything's fine.
+To access that:
+- Go to localhost:8080
+- email: admin@admin.com <br>
+  password: admin
+- Click on 'Add New Server'. (unless somehow it already exists there on left sidebar o_o)
+- Give a name for your Server.
+- Move to the "Connection Tab". <br>
+
+
+  Hostname: postgres <br>
+  Port: 5432 <br>
+  Maintenance Database: logs_db <br>
+  username: admin <br>
+  password: password 
+- Save.
+
+You got it :) <br> You can navigate to the server, look for logs_db and check if everything's fine. You can also run sql commands by clicking on logs_db and navigating towards the 'cylinder with a triangle' icon. That's your Query Tool (essentially SQL shell). Run commands. Check if logs are present. Have a bun samosa 🍔
+
+(Should misfortune befall you, here's a 15 min video on using pgadmin: https://youtu.be/WFT5MaZN6g4?si=36_71O4zve2JD7vC)
+  
+  
