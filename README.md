@@ -81,6 +81,11 @@ This one in particular removes the containers and clears the persistent data in 
 <br>
 
 ## --IN PARTICULAR FOR POSTGRESQL AND PGADMIN--
+Our main library to interact with postgresql.
+```sh
+$ pip install psycopg2
+```
+<br>
 
 - Run the docker compose file as mentioned previously.
 - Run the docker_topics.py file.
