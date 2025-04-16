@@ -1,10 +1,12 @@
-from flask import Flask, request, jsonify
+from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
+from flask import Flask, request, jsonify, g, Response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import Bcrypt
 import uuid
 from confluent_kafka import Producer
 import json
-import time
+from datetime import datetime, UTC
+
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "cc-proj"
@@ -31,6 +33,53 @@ producer_conf = {
 }
 producer = Producer(producer_conf)
 
+REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "endpoint", "status_code"])
+REQUEST_LATENCY = Histogram("http_response_time_seconds", "Request latency in seconds", ["method", "endpoint"])
+
+@app.route("/metrics")
+def metrics():
+    return Response(generate_latest(REGISTRY), mimetype="text/plain")
+
+@app.before_request
+def start_timer():
+    g.start_time = datetime.now(UTC)
+
+@app.after_request
+def log_request(response):
+    try:
+        duration = round((datetime.now(UTC) - g.start_time).total_seconds() * 1000)
+        log_data = {
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+            "endpoint": request.path,
+            "method": request.method,
+            "status_code": response.status_code,
+            "response_time_ms": duration,
+            "error_message": response.json.get("error") if response.is_json and "error" in response.json else None,
+            "username": get_jwt_identity() if "Authorization" in request.headers and "Bearer" in request.headers[
+                "Authorization"] else "anonymous"
+        }
+        send_to_kafka("pastebin_api_logs", log_data)
+        REQUEST_COUNT.labels(method=request.method, endpoint=request.path, status_code=response.status_code).inc()
+        REQUEST_LATENCY.labels(method=request.method, endpoint=request.path).observe(duration / 1000)
+    except Exception as e:
+        print(f"Access log send failed: {e}")
+    return response
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    duration = round((datetime.now(UTC) - g.start_time).total_seconds() * 1000)
+    log_data = {
+        "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+        "endpoint": request.path,
+        "method": request.method,
+        "status_code": 500,
+        "response_time_ms": duration,
+        "error_message": str(e),
+        "username": get_jwt_identity() if "Authorization" in request.headers and "Bearer" in request.headers["Authorization"] else "anonymous"
+    }
+    send_to_kafka("pastebin_api_logs", log_data)
+    return jsonify({"error": "Internal Server Error"}), 500
+
 # In-memory DB
 users_db = {
     "admin": bcrypt.generate_password_hash("password123").decode("utf-8"),
@@ -52,8 +101,11 @@ def sign_up():
         send_to_kafka("auth_topic", {
             "event": "signup",
             "username": username,
-            "timestamp": time.time(),
-            "result": "failed - username already exists"
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+            "result": "failed - username already exists",
+            "endpoint": "/signup",
+            "method": "POST",
+            "status_code": 400
         })
         return jsonify({"message": "Username already exists"}), 400
 
@@ -62,8 +114,11 @@ def sign_up():
     send_to_kafka("auth_topic", {
         "event": "signup",
         "username": username,
-        "timestamp": time.time(),
-        "result": "successfully signed up"
+        "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+        "result": "successfully signed up",
+        "endpoint": "/signup",
+        "method": "POST",
+        "status_code": 201
     })
     return jsonify({"message": "User created"}), 201
 
@@ -78,8 +133,11 @@ def login():
         send_to_kafka("auth_topic", {
             "event": "login",
             "username": username,
-            "timestamp": time.time(),
-            "result": "failed - invalid credentials"
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+            "result": "failed - invalid credentials",
+            "endpoint": "/login",
+            "method": "POST",
+            "status_code": 401
         })
         return jsonify({"message": "Invalid credentials"}), 401
 
@@ -87,8 +145,11 @@ def login():
     send_to_kafka("auth_topic", {
         "event": "login",
         "username": username,
-        "timestamp": time.time(),
-        "result": "successfully logged in"
+        "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+        "result": "successfully logged in",
+        "endpoint": "/login",
+        "method": "POST",
+        "status_code": 200
     })
     return jsonify({"message": "Logged in Successfully!", "access_token": access_token}), 200
 
@@ -99,8 +160,11 @@ def logout():
     send_to_kafka("auth_topic", {
         "event": "logout",
         "username": username,
-        "timestamp": time.time(),
-        "result": "successfully logged out"
+        "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+        "result": "successfully logged out",
+        "endpoint": "/logout",
+        "method": "POST",
+        "status_code": 200
     })
     return jsonify({"message": f"{username} Logged Out"}), 200
 
@@ -121,7 +185,10 @@ def create_paste():
         "username": get_jwt_identity(),
         "paste_id": paste_id,
         "content": data['content'],
-        "timestamp": time.time()
+        "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+        "endpoint": "/paste",
+        "method": "POST",
+        "status_code": 201
     })
 
     return jsonify({"message": "Paste created", "paste_id": paste_id}), 201
@@ -152,7 +219,10 @@ def delete_paste(paste_id):
         "event": "delete_paste",
         "username": username,
         "paste_id": paste_id,
-        "timestamp": time.time()
+        "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+        "endpoint": f"/paste/{paste_id}",
+        "method": "DELETE",
+        "status_code": 200
     })
 
     return jsonify({"message": "Paste deleted"}), 200
@@ -169,8 +239,11 @@ def update_paste(paste_id):
             "event": "update_paste",
             "username": username,
             "paste_id": paste_id,
-            "timestamp": time.time(),
-            "result": "failed - paste not found"
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+            "result": "failed - paste not found",
+            "endpoint": f"/paste/{paste_id}",
+            "method": "PUT",
+            "status_code": 404
         })
         return jsonify({"error": "Paste not found"}), 404
 
@@ -179,8 +252,11 @@ def update_paste(paste_id):
             "event": "update_paste",
             "username": username,
             "paste_id": paste_id,
-            "timestamp": time.time(),
-            "result": "failed - unauthorized"
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+            "result": "failed - unauthorized",
+            "endpoint": f"/paste/{paste_id}",
+            "method": "PUT",
+            "status_code": 403
         })
         return jsonify({"error": "You are not authorized to update this paste"}), 403
 
@@ -194,8 +270,11 @@ def update_paste(paste_id):
         "event": "update_paste",
         "username": username,
         "paste_id": paste_id,
-        "timestamp": time.time(),
-        "result": "success"
+        "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+        "result": "success",
+        "endpoint": f"/paste/{paste_id}",
+        "method": "PUT",
+        "status_code": 200
     })
 
     return jsonify({"message": "Paste updated"}), 200
@@ -205,22 +284,31 @@ def update_paste(paste_id):
 def search_pastes():
     keyword = request.args.get('keyword', '').lower()
     username = get_jwt_identity()
-    result = {}
+    result = {pid: p for pid, p in pastes.items() if keyword in p["content"].lower()}
 
-    for paste_id, paste in pastes.items():
-        if keyword in paste["content"].lower():
-            result[paste_id] = paste
+    if not result:
+        send_to_kafka("access_topic", {
+            "event": "search_pastes",
+            "username": username,
+            "keyword": keyword,
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+            "result_count": 0,
+            "endpoint": "/search",
+            "method": "GET",
+            "status_code": 404
+        })
+        return jsonify({"message": "No pastes found"}), 404
 
     send_to_kafka("access_topic", {
         "event": "search_pastes",
         "username": username,
         "keyword": keyword,
-        "timestamp": time.time(),
-        "result_count": len(result)
+        "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+        "result_count": len(result),
+        "endpoint": "/search",
+        "method": "GET",
+        "status_code": 200
     })
-    if not result:
-        return jsonify({"message": "No pastes found"}), 404
-
     return jsonify({"results": result}), 200
 
 @app.route('/pastes', methods=['GET'])
@@ -229,16 +317,29 @@ def list_pastes():
     username = get_jwt_identity()
     user_pastes = {pid: p for pid, p in pastes.items() if p["owner"] == username}
 
+    if not user_pastes:
+        send_to_kafka("access_topic", {
+            "event": "list_pastes",
+            "username": username,
+            "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+            "result_count": 0,
+            "endpoint": "/pastes",
+            "method": "GET",
+            "status_code": 404
+        })
+        return jsonify({"message": "No pastes found for this user"}), 404
+
     send_to_kafka("access_topic", {
         "event": "list_pastes",
         "username": username,
-        "timestamp": time.time(),
-        "result_count": len(user_pastes)
+        "timestamp": int(datetime.now(UTC).timestamp() * 1000),
+        "result_count": len(user_pastes),
+        "endpoint": "/pastes",
+        "method": "GET",
+        "status_code": 200
     })
-    if not user_pastes:
-        return jsonify({"message": "No pastes found for this user"}), 404
-
     return jsonify({"pastes": user_pastes}), 200
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     app.run(debug=True)
+
