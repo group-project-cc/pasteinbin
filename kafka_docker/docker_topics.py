@@ -8,7 +8,8 @@ topics = [
     NewTopic("auth_topic", num_partitions=3, replication_factor=1),
     NewTopic("paste_topic", num_partitions=4, replication_factor=1),
     NewTopic("access_topic", num_partitions=2, replication_factor=1),
-    NewTopic("error_topic", num_partitions=1, replication_factor=1)
+    NewTopic("error_topic", num_partitions=1, replication_factor=1),
+    NewTopic("pastebin_api_logs", num_partitions=1, replication_factor=1)
 ]
 
 fs = admin.create_topics(topics)
