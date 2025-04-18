@@ -23,7 +23,7 @@ consumer.subscribe(['auth_topic', 'paste_topic', 'access_topic', 'pastebin_api_l
 
 print("📡 Kafka Consumer started. Listening to 4 topics...\n")
 
-# 🔽 Insert Functions
+# Insert Functions
 def insert_auth_log(data):
     cur.execute("""
         INSERT INTO auth_logs (event, username, timestamp, result, endpoint, method, status_code)
@@ -93,7 +93,7 @@ def insert_request_log(data):
     ))
     conn.commit()
 
-# 🔁 Consume & Insert
+#  Consume & Insert
 try:
     while True:
         msg = consumer.poll(1.0)
