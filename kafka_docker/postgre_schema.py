@@ -43,7 +43,7 @@ cur.execute("""
     )
 """)
 
-# Create paste_logs table
+# Create paste_logs table (modified)
 cur.execute("""
     CREATE TABLE IF NOT EXISTS paste_logs (
         id SERIAL PRIMARY KEY,
@@ -51,7 +51,7 @@ cur.execute("""
         username VARCHAR(255) NOT NULL,
         paste_id VARCHAR(36),
         timestamp BIGINT NOT NULL,
-        endpoint VARCHAR(255) NOT NULL,
+        endpoint VARCHAR(255),
         method VARCHAR(10) NOT NULL,
         status_code INTEGER NOT NULL,
         content TEXT,
