@@ -6,8 +6,6 @@ import uuid
 from confluent_kafka import Producer
 import json
 from datetime import datetime, UTC
-
-
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "cc-proj"
 jwt = JWTManager(app)
@@ -341,5 +339,4 @@ def list_pastes():
     return jsonify({"pastes": user_pastes}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
+    app.run(debug=True, host='0.0.0.0', port=5000)
