@@ -75,7 +75,9 @@ LIMIT 100
 [INSERT SOMETHING] 
 
 ### QUERIES FOR RESPONSE TIME TRENDS
--AVERAGE RESPONSE TIME IN THE LAST HOUR
+- AVERAGE RESPONSE TIME IN THE LAST HOUR
+
+```sh
 SELECT
   date_trunc('minute', to_timestamp(timestamp / 1000.0)) AS time_interval,
   AVG(response_time_ms) AS avg_response_time
@@ -83,8 +85,11 @@ FROM request_logs
 WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '1 hour'
 GROUP BY time_interval
 ORDER BY time_interval DESC
+```
 
--MAXIMUM RESPONSE TIME PER INTERVAL
+- MAXIMUM RESPONSE TIME PER INTERVAL
+
+```sh
 SELECT
   date_trunc('minute', to_timestamp(timestamp / 1000.0)) AS time_interval,
   MAX(response_time_ms) AS max_response_time
@@ -92,8 +97,11 @@ FROM request_logs
 WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '1 hour'
 GROUP BY time_interval
 ORDER BY time_interval DESC
+```
 
 -MINIMUM RESPONSE TIME PER INTERVAL
+
+```sh
 SELECT
   date_trunc('minute', to_timestamp(timestamp / 1000.0)) AS time_interval,
   MIN(response_time_ms) AS min_response_time
@@ -101,8 +109,11 @@ FROM request_logs
 WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '1 hour'
 GROUP BY time_interval
 ORDER BY time_interval DESC
+```
 
 -REQUEST COUNT AND RESPONSE TIME AVERAGE
+
+```sh
 SELECT
   date_trunc('minute', to_timestamp(timestamp / 1000.0)) AS time_interval,
   COUNT(*) AS request_count,
@@ -111,8 +122,7 @@ FROM request_logs
 WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '1 hour'
 GROUP BY time_interval
 ORDER BY time_interval DESC
-
-
+```
 
 ### QUERIES FOR MOST FREQUENT ERRORS IN THE APPLICATION
 [INSERT SOMETHING] 
