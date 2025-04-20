@@ -74,7 +74,7 @@ LIMIT 100
 ### QUERIES FOR REQUEST COUNT PER ENDPOINT
 
 ```sh
-sum(rate(http_requests_total[5m])) by (endpoint)
+sum(rate(http_requests_total[5m])) by (endpoint, method, status_code)
 ```
 
 ### QUERIES FOR RESPONSE TIME TRENDS
